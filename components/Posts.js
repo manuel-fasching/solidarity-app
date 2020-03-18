@@ -85,34 +85,32 @@ export function Posts(props) {
         setRefreshing(true);
         wait(2000).then(() => setRefreshing(false));
     }, [refreshing]);
-
-    const currentLocation = {
-        lat: 48.137154,
-        long: 11.576124
-    };
-
-
-    return (
-        <SafeAreaView style={styles.scrollView}>
-            <FlatList
-                data={props.items}
-                renderItem={ ({ item }) => <Item
-                    name={item.name}
-                    content={item.content}
-                    postTimestamp={item.postTimestamp}
-                    phoneNumber={item.phoneNumber}
-                    whatsappSupported={props.showWhatsappButton && item.whatsappSupported}
-                    myLongitude={currentLocation.long}
-                    myLatitude={currentLocation.lat}
-                    itemLongitude={item.location.long}
-                    itemLatitude={item.location.lat}
-                />}
-                keyExtractor={item => item.id}
-                refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh}/>}
-            />
-        </SafeAreaView>
-    )
+        return (
+            <SafeAreaView style={styles.scrollView}>
+                { props.items.length ===0 &&
+                <View style={styles.noPostsView}>
+                    <View style={{paddingBottom: 15}}><Text style={styles.noPostsText}>Es sind noch keine Beiträge vorhanden.</Text></View>
+                    <View><Text style={styles.noPostsText}>Ergreife die Initiative und erstelle den ersten Beitrag in deiner Umgebung!</Text></View>
+                </View> }
+                { props.items.length !==0 && <FlatList
+                    data={props.items}
+                    renderItem={ ({ item }) => <Item
+                        name={item.name}
+                        content={item.content}
+                        postTimestamp={item.postTimestamp}
+                        phoneNumber={item.phoneNumber}
+                        whatsappSupported={props.showWhatsappButton && item.whatsappSupported}
+                        myLongitude={props.currentLocation.longitude}
+                        myLatitude={props.currentLocation.latitude}
+                        itemLongitude={item.location.longitude}
+                        itemLatitude={item.location.latitude}
+                    />}
+                    keyExtractor={item => item.id}
+                    refreshControl={
+                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh}/>}
+                /> }
+            </SafeAreaView>
+        );
 }
 
 const styles = StyleSheet.create({
@@ -153,5 +151,13 @@ const styles = StyleSheet.create({
     },
     scrollView: {
         flex: 1
+    },
+    noPostsView: {
+        justifyContent: 'center',
+        flex: 1
+    },
+    noPostsText: {
+        textAlign: 'center',
+        fontSize: 20
     }
 });

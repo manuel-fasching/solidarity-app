@@ -1,65 +1,27 @@
 import React, {useEffect, useState} from "react";
 
-import {Linking, StyleSheet, View} from "react-native";
+import {Alert, Linking, StyleSheet, View} from "react-native";
 import {Posts} from "./Posts";
-import {FAB} from "react-native-paper";
+import {ActivityIndicator, FAB} from "react-native-paper";
 import {PostModal} from "./PostModal";
 import uuid from 'react-native-uuid';
+import * as Permissions from 'expo-permissions';
+import * as Location from 'expo-location';
+import {AsyncStorage} from 'react-native';
 
 
 let DATA = [
-    {
-        id: 'random-uuid1',
-        userToken: 'user1',
-        postTimestamp: new Date().getTime(),
-        content: 'Hi, kann jemand mit meinen Hund Gassi gehen?',
-        whatsappSupported: true,
-        name: 'Manuel',
-        location: {
-            long: 11.5775,
-            lat: 48.1422222222
-        },
-        phoneNumber: '034343423434'
-    },
-    {
-        id: 'random-uuid2',
-        userToken: 'user2',
-        postTimestamp: new Date().getTime(),
-        content: 'Hallo zusammen. Könnte jemand für mich Lebensmittel einkaufen? Ich darf leider das Haus nicht mehr verlassen...',
-        name: 'Alina',
-        whatsappSupported: false,
-        location: {
-            long: 11.586,
-            lat: 48.161
-        },
-        phoneNumber: '034343423434'
-    },
-    {
-        id: 'random-uuid3',
-        userToken: 'user3',
-        postTimestamp: new Date().getTime(),
-        content: 'HILFE! Bello müsste dringend raus und ich darf nicht.',
-        name: 'Thomas',
-        whatsappSupported: true,
-        location: {
-            long: 11.6215158473,
-            lat: 48.2179307949
-        },
-        phoneNumber: '034343423434'
-    },
 ];
 
 export function SolidarityBody(props) {
     const [modalVisible, setModalVisible] = useState(false);
-    const [position, setPosition] = useState({
-        latitude: 0,
-        longitude: 0
-    });
+    const [currentLocation, setCurrentLocation] = useState(null);
     const [whatsappSupported, setWhatsappSupported] = useState(false);
     const [postModalNameErrorMessage, setPostModalNameErrorMessage] = useState(null);
     const [postModalCountryCodeErrorMessage, setPostModalCountryCodeErrorMessage] = useState(null);
     const [postModalPhoneNumberErrorMessage, setPostModalPhoneNumberErrorMessage] = useState(null);
     const [postModalMessageErrorMessage, setPostModalMessageErrorMessage] = useState(null);
+    const [isLoadingComplete, setLoadingComplete] = useState(false);
 
     const [postModalName, setPostModalName] = useState('');
     const [postModalCountryCode, setPostModalCountryCode] = useState('+43');
@@ -67,15 +29,41 @@ export function SolidarityBody(props) {
     const [postModalMessage, setPostModalMessage] = useState('');
 
     useEffect(() => {
-        async function checkIfWhatsappIsInstalled() {
-            const isWaInstalled = await Linking.canOpenURL('whatsapp://')
+        const loadRequiredData = async () => {
+            // Check if it's the first app open
+            try {
+                const value = await AsyncStorage.getItem('isFirstAppOpen');
+                if (value === null) {
+                    Alert.alert('Hallo!',
+                        'Solidarity braucht deinen Standort um dir Beiträge in deiner Umgebung anzuzeigen.');
+                    await AsyncStorage.setItem('isFirstAppOpen', 'false');
+                }
+            } catch (error) {
+                console.log(error);
+            }
+
+            // Check if we (still) have location permission
+            const status = await Permissions.askAsync(Permissions.LOCATION);
+            if (status.status !== 'granted') {
+                console.log('permissions not granted');
+            }
+
+            let location = await Location.getCurrentPositionAsync({});
+            setCurrentLocation({
+                latitude: location.coords.latitude,
+                longitude: location.coords.longitude
+            });
+
+            // Check if WhatsApp is installed
+            const isWaInstalled = await Linking.canOpenURL('whatsapp://send?phone=1')
                 .catch((err) => {
                     console.warn(err);
                     return false;
                 });
-            setWhatsappSupported(isWaInstalled)
-        }
-        checkIfWhatsappIsInstalled();
+            setWhatsappSupported(isWaInstalled);
+            setLoadingComplete(true);
+        };
+        loadRequiredData();
     }, []);
 
     const resetErrors = () => {
@@ -132,50 +120,54 @@ export function SolidarityBody(props) {
                 content: postModalMessage,
                 name: postModalName,
                 whatsappSupported: whatsappSupported,
-                location: {
-                    long: position.longitude,
-                    lat: position.latitude
-                },
+                location: currentLocation,
                 phoneNumber: compilePhoneNumber()
             });
             DATA = DATA.sort((a, b) => b.postTimestamp - a.postTimestamp)
             hideModal()
         }
     };
-
-    return (
-        <View style={styles.container}>
-            <Posts
-                showWhatsappButton={whatsappSupported}
-                items={DATA}
-            />
-            <PostModal
-                visible={modalVisible}
-                hideModalFct={hideModal}
-                postFct={postContent}
-                nameError={postModalNameErrorMessage}
-                countryCodeError={postModalCountryCodeErrorMessage}
-                phoneNumberError={postModalPhoneNumberErrorMessage}
-                messageError={postModalMessageErrorMessage}
-                setNameFct={(name) => setPostModalName(name)}
-                setCountryCodeFct={(cc) => setPostModalCountryCode(cc)}
-                setPhoneNumberFct={(pn) => setPostModalPhoneNumber(pn)}
-                setMessageFct={(m) => setPostModalMessage(m)}
-                name={postModalName}
-                countryCode={postModalCountryCode}
-                phoneNumber={postModalPhoneNumber}
-                message={postModalMessage}
-            />
-            <View>
-                <FAB
-                    style={styles.fab}
-                    onPress={showModal}
-                    icon='plus'
-                    mode='contained'>
-                </FAB>
+    if (!isLoadingComplete) {
+        return (
+            <View style={[styles.container, {justifyContent: 'center'}]}>
+                <ActivityIndicator color='#3590B7' size='large'/>
+            </View>);
+    } else {
+        return (
+            <View style={styles.container}>
+                <Posts
+                    showWhatsappButton={whatsappSupported}
+                    currentLocation={currentLocation}
+                    items={DATA}
+                />
+                <PostModal
+                    visible={modalVisible}
+                    hideModalFct={hideModal}
+                    postFct={postContent}
+                    nameError={postModalNameErrorMessage}
+                    countryCodeError={postModalCountryCodeErrorMessage}
+                    phoneNumberError={postModalPhoneNumberErrorMessage}
+                    messageError={postModalMessageErrorMessage}
+                    setNameFct={(name) => setPostModalName(name)}
+                    setCountryCodeFct={(cc) => setPostModalCountryCode(cc)}
+                    setPhoneNumberFct={(pn) => setPostModalPhoneNumber(pn)}
+                    setMessageFct={(m) => setPostModalMessage(m)}
+                    name={postModalName}
+                    countryCode={postModalCountryCode}
+                    phoneNumber={postModalPhoneNumber}
+                    message={postModalMessage}
+                />
+                <View>
+                    <FAB
+                        style={styles.fab}
+                        onPress={showModal}
+                        icon='plus'
+                        mode='contained'>
+                    </FAB>
+                </View>
             </View>
-        </View>
-    )
+        )
+    }
 }
 
 const styles = StyleSheet.create({

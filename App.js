@@ -15,7 +15,7 @@ const fontConfig = {
         regular: {
             fontFamily: 'space-mono',
             fontWeight: 'normal',
-        },
+        }
     },
 };
 
