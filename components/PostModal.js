@@ -1,6 +1,6 @@
 import React, {useCallback, useEffect, useRef, useState} from "react";
-import {Button, IconButton, TextInput} from "react-native-paper";
-import {Modal, StyleSheet, Text, View} from "react-native";
+import {Button, IconButton, TextInput, Text} from "react-native-paper";
+import {Modal, StyleSheet, View} from "react-native";
 import {KeyboardAwareScrollView} from "react-native-keyboard-aware-scroll-view";
 
 export function PostModal(props) {

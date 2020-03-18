@@ -1,12 +1,10 @@
 import React, {useEffect, useState} from "react";
 
-import {StyleSheet, View} from "react-native";
+import {Linking, StyleSheet, View} from "react-native";
 import {Posts} from "./Posts";
-import {Button, FAB} from "react-native-paper";
+import {FAB} from "react-native-paper";
 import {PostModal} from "./PostModal";
-import Geolocation from 'react-native-geolocation-service';
 import uuid from 'react-native-uuid';
-import {AppInstalledChecker} from 'react-native-check-app-install';
 
 
 let DATA = [
@@ -70,36 +68,16 @@ export function SolidarityBody(props) {
 
     useEffect(() => {
         async function checkIfWhatsappIsInstalled() {
-            const isWaInstalled = await AppInstalledChecker
-                .checkURLScheme('whatsapp');
+            const isWaInstalled = await Linking.canOpenURL('whatsapp://')
+                .catch((err) => {
+                    console.warn(err);
+                    return false;
+                });
             setWhatsappSupported(isWaInstalled)
         }
-        async function getCurrentPosition() {
-           await Geolocation.getCurrentPosition(
-                pos => {
-                    setPosition( {
-                        latitude: pos.coords.latitude,
-                        longitude: pos.coords.longitude
-                    })
-                },
-                e => {
-                    Alert.alert(
-                        'Wo bist du?',
-                        'Solidarity benötigt deinen Standort um zu funktionieren. Bitte erlaube Solidarity auf deinen Standort zuzugreifen.',
-                        [{text: 'OK', onPress: () => console.log('OK Pressed')}],
-                        {cancelable: false},
-                    );
-                }
-            );
-        }
         checkIfWhatsappIsInstalled();
-        getCurrentPosition();
     }, []);
 
-    const getPosition = () => {
-
-        setPosition(getCurrentPosition())
-    };
     const resetErrors = () => {
         setPostModalNameErrorMessage(null);
         setPostModalCountryCodeErrorMessage(null);

@@ -43,7 +43,7 @@ function Item({name, content, postTimestamp, phoneNumber, whatsappSupported, myL
                     <Text style={styles.nameText}>{name}</Text>
                 </View>
                 <View>
-                    <Text style={styles.locationText}>&lt; {distance}  <FontAwesomeIcon icon={faMapMarkedAlt} />
+                    <Text style={styles.locationText}>&lt;{distance}  <FontAwesomeIcon icon={faMapMarkedAlt} />
                     </Text>
                 </View>
             </View>
