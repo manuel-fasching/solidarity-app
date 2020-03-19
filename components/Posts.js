@@ -17,7 +17,7 @@ function wait(timeout) {
 
 function Item({name, content, postTimestamp, phoneNumber, whatsappSupported, myLongitude, myLatitude, itemLongitude, itemLatitude}) {
     const timeString = new Date(postTimestamp).toLocaleTimeString();
-    const calculateDistance = (lat1,lon1,lat2,lon2) => {
+    const _calculateDistance = (lat1,lon1,lat2,lon2) => {
         const R = 6371;
         const dLat = (lat2-lat1) * Math.PI / 180;
         const dLon = (lon2-lon1) * Math.PI / 180;
@@ -29,12 +29,12 @@ function Item({name, content, postTimestamp, phoneNumber, whatsappSupported, myL
         if (d>1) return Math.round(d)+"km";
         else if (d<=1) return Math.round(d*10)*100+"m";
     };
-    const distance = calculateDistance(myLatitude, myLongitude, itemLatitude, itemLongitude);
-    const openWhatsApp = () => {
+    const distance = _calculateDistance(myLatitude, myLongitude, itemLatitude, itemLongitude);
+    const _openWhatsApp = () => {
         Linking.openURL(`whatsapp://send?phone=${phoneNumber.replace('+', '')}`);
     };
-    const openPhone = () => Linking.openURL(`tel:${phoneNumber}`);
-    const openMessenger = () => Linking.openURL(`sms:${phoneNumber}`);
+    const _openPhone = () => Linking.openURL(`tel:${phoneNumber}`);
+    const _openMessenger = () => Linking.openURL(`sms:${phoneNumber}`);
 
     return (
         <Card style={styles.post}>
@@ -60,19 +60,19 @@ function Item({name, content, postTimestamp, phoneNumber, whatsappSupported, myL
                     <FontAwesomeIcon
                         icon={faPhoneSquare}
                         size={28}
-                        onPress={openPhone}/>
+                        onPress={_openPhone}/>
                 </View>
                 <View style={styles.contactBarView}>
                     <FontAwesomeIcon
                         icon={faSms}
                         size={28}
-                        onPress={openMessenger}/>
+                        onPress={_openMessenger}/>
                 </View>
                 <View style={styles.contactBarView}>
                     {whatsappSupported && <FontAwesomeIcon
                         icon={faWhatsapp}
                         size={28}
-                        onPress={openWhatsApp}/> }
+                        onPress={_openWhatsApp}/> }
                 </View>
             </View>
         </Card>)
@@ -89,7 +89,7 @@ export function Posts(props) {
             <SafeAreaView style={styles.scrollView}>
                 { props.items.length ===0 &&
                 <View style={styles.noPostsView}>
-                    <View style={{paddingBottom: 15}}><Text style={styles.noPostsText}>Es sind noch keine Beiträge vorhanden.</Text></View>
+                    <View style={{paddingBottom: 15}}><Text style={styles.noPostsTitle}>Es sind noch keine Beiträge vorhanden.</Text></View>
                     <View><Text style={styles.noPostsText}>Ergreife die Initiative und erstelle den ersten Beitrag in deiner Umgebung!</Text></View>
                 </View> }
                 { props.items.length !==0 && <FlatList
@@ -100,10 +100,10 @@ export function Posts(props) {
                         postTimestamp={item.postTimestamp}
                         phoneNumber={item.phoneNumber}
                         whatsappSupported={props.showWhatsappButton && item.whatsappSupported}
-                        myLongitude={props.currentLocation.longitude}
-                        myLatitude={props.currentLocation.latitude}
-                        itemLongitude={item.location.longitude}
-                        itemLatitude={item.location.latitude}
+                        myLongitude={props.currentLongitude}
+                        myLatitude={props.currentLatitude}
+                        itemLongitude={item.longitude}
+                        itemLatitude={item.latitude}
                     />}
                     keyExtractor={item => item.id}
                     refreshControl={
@@ -155,6 +155,10 @@ const styles = StyleSheet.create({
     noPostsView: {
         justifyContent: 'center',
         flex: 1
+    },
+    noPostsTitle: {
+        textAlign: 'center',
+        fontSize: 20
     },
     noPostsText: {
         textAlign: 'center',

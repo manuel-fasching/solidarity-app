@@ -1,92 +1,106 @@
 import React, {useEffect, useState} from "react";
 
-import {Alert, Linking, StyleSheet, View} from "react-native";
+import {AppState, Linking, StyleSheet, View} from "react-native";
 import {Posts} from "./Posts";
-import {ActivityIndicator, FAB} from "react-native-paper";
+import {ActivityIndicator, Button, FAB, Text} from "react-native-paper";
 import {PostModal} from "./PostModal";
 import uuid from 'react-native-uuid';
 import * as Permissions from 'expo-permissions';
 import * as Location from 'expo-location';
-import {AsyncStorage} from 'react-native';
 
 
-let DATA = [
-];
+let DATA = [];
 
 export function SolidarityBody(props) {
     const [modalVisible, setModalVisible] = useState(false);
-    const [currentLocation, setCurrentLocation] = useState(null);
+    const [currentLongitude, setCurrentLongitude] = useState(null);
+    const [currentLatitude, setCurrentLatitude] = useState(null);
     const [whatsappSupported, setWhatsappSupported] = useState(false);
     const [postModalNameErrorMessage, setPostModalNameErrorMessage] = useState(null);
     const [postModalCountryCodeErrorMessage, setPostModalCountryCodeErrorMessage] = useState(null);
     const [postModalPhoneNumberErrorMessage, setPostModalPhoneNumberErrorMessage] = useState(null);
     const [postModalMessageErrorMessage, setPostModalMessageErrorMessage] = useState(null);
-    const [isLoadingComplete, setLoadingComplete] = useState(false);
-
     const [postModalName, setPostModalName] = useState('');
     const [postModalCountryCode, setPostModalCountryCode] = useState('+43');
     const [postModalPhoneNumber, setPostModalPhoneNumber] = useState('');
     const [postModalMessage, setPostModalMessage] = useState('');
+    const [locationPermissionGranted, setLocationPermissionGranted] = useState(false);
+    const [canAskAgainForLocationPermission, setCanAskAgainForLocationPermission] = useState(true);
+
+    const [isLoadingComplete, setLoadingComplete] = useState(false);
+    const [appState, setAppState] = useState(AppState.currentState);
+
+
+    const _askForLocationPermission = async () => {
+        const status = await Permissions.askAsync(Permissions.LOCATION);
+        const granted = status.status === 'granted';
+        const canAskAgain = status.canAskAgain;
+        setLocationPermissionGranted(granted);
+        setCanAskAgainForLocationPermission(canAskAgain);
+    };
+    const _setCurrentLocationIfAllowed = async () => {
+        const status = await Permissions.getAsync(Permissions.LOCATION);
+        const granted = status.status === 'granted';
+        if (granted) {
+            let location = await Location.getCurrentPositionAsync({});
+            setCurrentLongitude(location.coords.longitude);
+            setCurrentLatitude(location.coords.latitude);
+            setLocationPermissionGranted(true);
+        }
+        return granted;
+    };
+
+    const _setWhatsAppStatus = async () => {
+        const waStatus = await Linking.canOpenURL('whatsapp://send?phone=1')
+            .catch((err) => {
+                console.warn(err);
+                return false;
+            });
+        setWhatsappSupported(waStatus);
+    };
 
     useEffect(() => {
-        const loadRequiredData = async () => {
-            // Check if it's the first app open
-            try {
-                const value = await AsyncStorage.getItem('isFirstAppOpen');
-                if (value === null) {
-                    Alert.alert('Hallo!',
-                        'Solidarity braucht deinen Standort um dir Beiträge in deiner Umgebung anzuzeigen.');
-                    await AsyncStorage.setItem('isFirstAppOpen', 'false');
-                }
-            } catch (error) {
-                console.log(error);
+        const _handleAppStateChange = async (nextAppState) => {
+            if (appState.match(/inactive|background/) && nextAppState === 'active') {
+                setLoadingComplete(false);
+                setCurrentLatitude(null);
+                setCurrentLongitude(null);
+                await _setCurrentLocationIfAllowed();
+                await _setWhatsAppStatus();
+                setLoadingComplete(true);
             }
-
-            // Check if we (still) have location permission
-            const status = await Permissions.askAsync(Permissions.LOCATION);
-            if (status.status !== 'granted') {
-                console.log('permissions not granted');
-            }
-
-            let location = await Location.getCurrentPositionAsync({});
-            setCurrentLocation({
-                latitude: location.coords.latitude,
-                longitude: location.coords.longitude
-            });
-
-            // Check if WhatsApp is installed
-            const isWaInstalled = await Linking.canOpenURL('whatsapp://send?phone=1')
-                .catch((err) => {
-                    console.warn(err);
-                    return false;
-                });
-            setWhatsappSupported(isWaInstalled);
-            setLoadingComplete(true);
+            setAppState(nextAppState);
         };
-        loadRequiredData();
-    }, []);
+        if (!isLoadingComplete) {
+            _setCurrentLocationIfAllowed();
+            _setWhatsAppStatus();
+            setLoadingComplete(true);
+        }
+        AppState.addEventListener('change', _handleAppStateChange);
+        return () => AppState.removeEventListener('change', _handleAppStateChange);
+    });
 
-    const resetErrors = () => {
+    const _resetErrors = () => {
         setPostModalNameErrorMessage(null);
         setPostModalCountryCodeErrorMessage(null);
         setPostModalPhoneNumberErrorMessage(null);
         setPostModalMessageErrorMessage(null);
     };
-    const resetPostModalInputFields = () => {
+    const _resetPostModalInputFields = () => {
         setPostModalPhoneNumber('');
         setPostModalName('');
         setPostModalCountryCode('+43');
         setPostModalMessage('');
     };
 
-    const showModal = () => setModalVisible(true);
-    const hideModal = () => {
-        resetErrors();
-        resetPostModalInputFields();
+    const _showModal = () => setModalVisible(true);
+    const _hideModal = () => {
+        _resetErrors();
+        _resetPostModalInputFields();
         setModalVisible(false);
     };
 
-    const postModalInputFieldsFilled = () => {
+    const _postModalInputFieldsFilled = () => {
         let empty = false;
         if (!postModalName || postModalName === '') {
             setPostModalNameErrorMessage('Bitte gib deinen Vornamen an');
@@ -106,9 +120,9 @@ export function SolidarityBody(props) {
         }
         return empty;
     };
-    const postContent = () => {
-        resetErrors();
-        if (!postModalInputFieldsFilled()) {
+    const _postContent = () => {
+        _resetErrors();
+        if (!_postModalInputFieldsFilled()) {
             const compilePhoneNumber = () => {
                 const normalizedPhoneNumber = postModalPhoneNumber.replace(/\D/g, '').replace(/^0+/, '');
                 return `${postModalCountryCode}${normalizedPhoneNumber}`;
@@ -120,11 +134,12 @@ export function SolidarityBody(props) {
                 content: postModalMessage,
                 name: postModalName,
                 whatsappSupported: whatsappSupported,
-                location: currentLocation,
+                longitude: currentLongitude,
+                latitude: currentLatitude,
                 phoneNumber: compilePhoneNumber()
             });
-            DATA = DATA.sort((a, b) => b.postTimestamp - a.postTimestamp)
-            hideModal()
+            DATA = DATA.sort((a, b) => b.postTimestamp - a.postTimestamp);
+            _hideModal()
         }
     };
     if (!isLoadingComplete) {
@@ -132,18 +147,38 @@ export function SolidarityBody(props) {
             <View style={[styles.container, {justifyContent: 'center'}]}>
                 <ActivityIndicator color='#3590B7' size='large'/>
             </View>);
+    } else if (!locationPermissionGranted && canAskAgainForLocationPermission) {
+        return (
+            <View style={[styles.container, {justifyContent: 'center'}]}>
+                <View style={{paddingBottom: 15}}><Text style={styles.locationPermissionTitle}>Hallo!</Text></View>
+                <View><Text style={styles.locationPermissionText}>Damit Solidarity dir Beiträge in deiner Nähe anzeigen
+                    kann muss Solidarity auf deinen Standort zugreifen.</Text></View>
+                <Button mode='contained' onPress={_askForLocationPermission} style={styles.locationPermissionButton}>Standort
+                    erlauben</Button>
+            </View>
+        );
+    } else if (!locationPermissionGranted && !canAskAgainForLocationPermission) {
+        return (
+            <View style={[styles.container, {justifyContent: 'center'}]}>
+                <View style={{paddingBottom: 15}}><Text style={styles.locationPermissionTitle}>Solidarity braucht deinen
+                    deinen Standort!</Text></View>
+                <View><Text style={styles.locationPermissionText}>Bitte gehe zu deinen Einstellungen und erlaube
+                    Solidarity auf deinen Standort zuzugreifen!</Text></View>
+            </View>
+        );
     } else {
         return (
             <View style={styles.container}>
                 <Posts
                     showWhatsappButton={whatsappSupported}
-                    currentLocation={currentLocation}
+                    currentLongitude={currentLongitude}
+                    currentLatitude={currentLatitude}
                     items={DATA}
                 />
                 <PostModal
                     visible={modalVisible}
-                    hideModalFct={hideModal}
-                    postFct={postContent}
+                    hideModalFct={_hideModal}
+                    postFct={_postContent}
                     nameError={postModalNameErrorMessage}
                     countryCodeError={postModalCountryCodeErrorMessage}
                     phoneNumberError={postModalPhoneNumberErrorMessage}
@@ -160,7 +195,7 @@ export function SolidarityBody(props) {
                 <View>
                     <FAB
                         style={styles.fab}
-                        onPress={showModal}
+                        onPress={_showModal}
                         icon='plus'
                         mode='contained'>
                     </FAB>
@@ -186,4 +221,15 @@ const styles = StyleSheet.create({
         right: 0,
         bottom: 0,
     },
+    locationPermissionTitle: {
+        textAlign: 'center',
+        fontSize: 20
+    },
+    locationPermissionText: {
+        textAlign: 'center',
+        fontSize: 14
+    },
+    locationPermissionButton: {
+        marginTop: 15
+    }
 });

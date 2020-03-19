@@ -5,12 +5,12 @@ import {KeyboardAwareScrollView} from "react-native-keyboard-aware-scroll-view";
 
 export function PostModal(props) {
 
-    const setCountryCodeFct = (cc) => {
+    const _setCountryCodeFct = (cc) => {
         if(cc.match(/^([+][0-9]{0,3})?$/g)){
             props.setCountryCodeFct(cc)
         }
     };
-    const setPhoneNumberFct = (pn) => {
+    const _setPhoneNumberFct = (pn) => {
         if(pn.match(/^([0-9]*)$/g)) {
             props.setPhoneNumberFct(pn)
         }
@@ -46,7 +46,7 @@ export function PostModal(props) {
                         <TextInput
                             label='Ländervorwahl'
                             multiline={false}
-                            onChangeText={countryCode => setCountryCodeFct(countryCode)}
+                            onChangeText={countryCode => _setCountryCodeFct(countryCode)}
                             value={props.countryCode}
                             mode='outlined'
                             keyboardType="phone-pad"
@@ -59,7 +59,7 @@ export function PostModal(props) {
                         <TextInput
                             label="Deine Telefonnummer"
                             multiline={false}
-                            onChangeText={phoneNumber => setPhoneNumberFct(phoneNumber)}
+                            onChangeText={phoneNumber => _setPhoneNumberFct(phoneNumber)}
                             value={props.phoneNumber}
                             maxLength={20}
                             mode='outlined'
