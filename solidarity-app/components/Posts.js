@@ -5,31 +5,12 @@ import {FlatList, RefreshControl, SafeAreaView, StyleSheet, View} from "react-na
 import {useState} from "react";
 import {useCallback} from "react";
 import {FontAwesomeIcon} from "@fortawesome/react-native-fontawesome";
-import { faMapMarkedAlt, faPhoneSquare, faSms } from '@fortawesome/free-solid-svg-icons';
-import { faWhatsapp} from "@fortawesome/free-brands-svg-icons";
+import {faMapMarkedAlt, faPhoneSquare, faSms} from '@fortawesome/free-solid-svg-icons';
+import {faWhatsapp} from "@fortawesome/free-brands-svg-icons";
 import {Linking} from 'react-native'
 
-function wait(timeout) {
-    return new Promise(resolve => {
-        setTimeout(resolve, timeout);
-    });
-}
-
-function Item({name, content, postTimestamp, phoneNumber, whatsappSupported, myLongitude, myLatitude, itemLongitude, itemLatitude}) {
+function Item({name, content, postTimestamp, phoneNumber, whatsappSupported, distance}) {
     const timeString = new Date(postTimestamp).toLocaleTimeString();
-    const _calculateDistance = (lat1,lon1,lat2,lon2) => {
-        const R = 6371;
-        const dLat = (lat2-lat1) * Math.PI / 180;
-        const dLon = (lon2-lon1) * Math.PI / 180;
-        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-            Math.cos(lat1 * Math.PI / 180 ) * Math.cos(lat2 * Math.PI / 180 ) *
-            Math.sin(dLon/2) * Math.sin(dLon/2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        const d = R * c;
-        if (d>1) return Math.round(d)+"km";
-        else if (d<=1) return Math.round(d*10)*100+"m";
-    };
-    const distance = _calculateDistance(myLatitude, myLongitude, itemLatitude, itemLongitude);
     const _openWhatsApp = () => {
         Linking.openURL(`whatsapp://send?phone=${phoneNumber.replace('+', '')}`);
     };
@@ -43,7 +24,7 @@ function Item({name, content, postTimestamp, phoneNumber, whatsappSupported, myL
                     <Text style={styles.nameText}>{name}</Text>
                 </View>
                 <View>
-                    <Text style={styles.locationText}>&lt;{distance}  <FontAwesomeIcon icon={faMapMarkedAlt} />
+                    <Text style={styles.locationText}>&lt;{distance} <FontAwesomeIcon icon={faMapMarkedAlt}/>
                     </Text>
                 </View>
             </View>
@@ -72,7 +53,7 @@ function Item({name, content, postTimestamp, phoneNumber, whatsappSupported, myL
                     {whatsappSupported && <FontAwesomeIcon
                         icon={faWhatsapp}
                         size={28}
-                        onPress={_openWhatsApp}/> }
+                        onPress={_openWhatsApp}/>}
                 </View>
             </View>
         </Card>)
@@ -80,37 +61,39 @@ function Item({name, content, postTimestamp, phoneNumber, whatsappSupported, myL
 
 export function Posts(props) {
     const [refreshing, setRefreshing] = useState(false);
-    const[location, setLocation] = useState(undefined)
     const onRefresh = useCallback(() => {
         setRefreshing(true);
-        wait(2000).then(() => setRefreshing(false));
+        props.refreshFct().then(() => setRefreshing(false));
     }, [refreshing]);
-        return (
-            <SafeAreaView style={styles.scrollView}>
-                { props.items.length ===0 &&
-                <View style={styles.noPostsView}>
+    return (
+        <SafeAreaView style={[styles.scrollView]}>
+            {props.items.length === 0 &&
+            <FlatList
+                data={[0]}
+                renderItem={({item}) => <View style={styles.noPostsView}>
                     <View style={{paddingBottom: 15}}><Text style={styles.noPostsTitle}>Es sind noch keine Beiträge vorhanden.</Text></View>
                     <View><Text style={styles.noPostsText}>Ergreife die Initiative und erstelle den ersten Beitrag in deiner Umgebung!</Text></View>
-                </View> }
-                { props.items.length !==0 && <FlatList
-                    data={props.items}
-                    renderItem={ ({ item }) => <Item
-                        name={item.name}
-                        content={item.content}
-                        postTimestamp={item.postTimestamp}
-                        phoneNumber={item.phoneNumber}
-                        whatsappSupported={props.showWhatsappButton && item.whatsappSupported}
-                        myLongitude={props.currentLongitude}
-                        myLatitude={props.currentLatitude}
-                        itemLongitude={item.longitude}
-                        itemLatitude={item.latitude}
-                    />}
-                    keyExtractor={item => item.id}
-                    refreshControl={
-                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh}/>}
-                /> }
-            </SafeAreaView>
-        );
+                </View>}
+                keyExtractor={item => item.toString()}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh}/>}
+            />}
+            {props.items.length !== 0 && <FlatList
+                data={props.items}
+                initialNumToRender={10}
+                maxToRenderPerBatch={10}
+                renderItem={({item}) => <Item
+                    name={item.firstName}
+                    content={item.content}
+                    postTimestamp={item.postTimestamp}
+                    phoneNumber={item.phoneNumber}
+                    whatsappSupported={props.showWhatsappButton && item.whatsappSupported}
+                    distance={item.distance}
+                />}
+                keyExtractor={item => item.uuid}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh}/>}
+            />}
+        </SafeAreaView>
+    );
 }
 
 const styles = StyleSheet.create({
@@ -153,7 +136,6 @@ const styles = StyleSheet.create({
         flex: 1
     },
     noPostsView: {
-        justifyContent: 'center',
         flex: 1
     },
     noPostsTitle: {

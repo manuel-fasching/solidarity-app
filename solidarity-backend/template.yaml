@@ -1,0 +1,102 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  solidarity-backend
+
+  Sample SAM Template for solidarity-backend
+  
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+
+Parameters:
+  SolidarityTableName:
+    Type: String
+    Default: SolidarityTable
+  SolidarityGeohashIndexName:
+    Type: String
+    Default: geohash-index
+  GeoHashKeyLength:
+    Type: Number
+    MinValue: 1
+    MaxValue: 11
+    Default: 8
+  SolidarityApiToken:
+    Type: String
+    Default: 0838c7e9-bc1d-4b90-82d8-c1a6e28c33e8
+
+
+Resources:
+  SolidarityFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      Environment:
+        Variables:
+          SOLIDARITY_TABLE_NAME: !Ref SolidarityTableName
+          GEOHASH_INDEX_NAME: !Ref SolidarityGeohashIndexName
+          GEO_HASH_KEY_LENGTH: !Ref GeoHashKeyLength
+          API_TOKEN: !Ref SolidarityApiToken
+      CodeUri: solidarity-function/
+      Handler: app.lambdaHandler
+      Runtime: nodejs12.x
+      MemorySize: 512
+      Timeout: 10
+      Events:
+        PostSolidarityPost:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /posts
+            Method: post
+        GetSolidarityPosts:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /posts
+            Method: get
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - 'dynamodb:GetItem'
+                - 'dynamodb:PutItem'
+                - 'dynamodb:Query'
+              Resource:
+                - !GetAtt DynamoDBTable.Arn
+                - !Join ['', [!GetAtt DynamoDBTable.Arn, '/index/*']]
+  DynamoDBTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref SolidarityTableName
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: hashKey
+          AttributeType: N
+        - AttributeName: rangeKey
+          AttributeType: S
+        - AttributeName: geohash
+          AttributeType: N
+      KeySchema:
+        - AttributeName: hashKey
+          KeyType: HASH
+        - AttributeName: rangeKey
+          KeyType: RANGE
+      LocalSecondaryIndexes:
+        - IndexName: !Ref SolidarityGeohashIndexName
+          Projection:
+            ProjectionType: ALL
+          KeySchema:
+            - AttributeName: hashKey
+              KeyType: HASH
+            - AttributeName: geohash
+              KeyType: RANGE
+Outputs:
+  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
+  # Find out more about other implicit resources you can reference within SAM
+  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
+  SolidarityApi:
+    Description: "API Gateway endpoint URL for Prod stage for Solidarity function"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
+  SolidarityFunctionArn:
+    Description: "Solidarity Lambda Function ARN"
+    Value: !GetAtt SolidarityFunction.Arn
+  SolidarityFunctionIamRole:
+    Description: "Implicit IAM Role created for Hello World function"
+    Value: !GetAtt SolidarityFunctionRole.Arn
