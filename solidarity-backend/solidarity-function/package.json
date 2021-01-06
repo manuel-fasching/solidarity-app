@@ -7,7 +7,7 @@
   "author": "Manuel Fasching",
   "license": "MIT",
   "dependencies": {
-    "axios": "^0.18.0",
+    "axios": "^0.21.1",
     "dynamodb-geo": "^0.4.0",
     "aws-sdk": "2.539.0"
   },
