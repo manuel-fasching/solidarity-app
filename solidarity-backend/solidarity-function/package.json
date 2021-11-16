@@ -9,7 +9,7 @@
   "dependencies": {
     "axios": "^0.21.1",
     "dynamodb-geo": "^0.4.0",
-    "aws-sdk": "2.539.0"
+    "aws-sdk": "2.814.0"
   },
   "scripts": {
     "test": "mocha tests/unit/"
